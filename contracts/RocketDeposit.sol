@@ -93,9 +93,8 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _seconds the time to lock in seconds.
      */
     function setMaturity(uint256 _seconds) external onlyOwner {
-        uint256 old_maturity = lock_time;
+        emit SetMaturity(msg.sender, lock_time, _seconds);
         lock_time = _seconds;
-        emit SetMaturity(msg.sender, old_maturity, _seconds);
     }
 
     /**
@@ -103,9 +102,8 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _sybil the address of the sybil.
      */
     function setSybil(address _sybil) external onlyOwner {
-        address old_sybil = address(sybil);
+        emit SetSybil(msg.sender, address(sybil), _sybil);
         sybil = ISybil(_sybil);
-        emit SetSybil(msg.sender, old_sybil, _sybil);
     }
 
     /**
@@ -113,9 +111,8 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _strategy the address of the strategy.
      */
     function setStrategy(address _strategy) external onlyOwner {
-        address old_strategy = address(bond_strategy);
+        emit SetStrategy(msg.sender, address(bond_strategy), _strategy);
         bond_strategy = IRocketStrategy(_strategy);
-        emit SetStrategy(msg.sender, old_strategy, _strategy);
     }
 
     /**
@@ -123,9 +120,8 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _treasury the address of the treasury.
      */
     function setTreasury(address _treasury) external onlyOwner {
-        address old_treasury = address(treasury);
+        emit SetTreasury(msg.sender, address(treasury), _treasury);
         treasury = IERC20(_treasury);
-        emit SetTreasury(msg.sender, old_treasury, _treasury);
     }
 
     /**
