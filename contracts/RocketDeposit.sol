@@ -6,6 +6,7 @@ import "../interfaces/ISybil.sol";
 import "../interfaces/IRocketStrategy.sol";
 import "../interfaces/IRocketDeposit.sol";
 import "./Ownable.sol";
+import "./Context.sol";
 import "./Pausable.sol";
 import "./Blacklistable.sol";
 
@@ -93,7 +94,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _seconds the time to lock in seconds.
      */
     function setMaturity(uint256 _seconds) external onlyOwner {
-        emit SetMaturity(msg.sender, lock_time, _seconds);
+        emit SetMaturity(_msgSender(), lock_time, _seconds);
         lock_time = _seconds;
     }
 
@@ -102,7 +103,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _sybil the address of the sybil.
      */
     function setSybil(address _sybil) external onlyOwner {
-        emit SetSybil(msg.sender, address(sybil), _sybil);
+        emit SetSybil(_msgSender(), address(sybil), _sybil);
         sybil = ISybil(_sybil);
     }
 
@@ -111,7 +112,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _strategy the address of the strategy.
      */
     function setStrategy(address _strategy) external onlyOwner {
-        emit SetStrategy(msg.sender, address(bond_strategy), _strategy);
+        emit SetStrategy(_msgSender(), address(bond_strategy), _strategy);
         bond_strategy = IRocketStrategy(_strategy);
     }
 
@@ -120,7 +121,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _treasury the address of the treasury.
      */
     function setTreasury(address _treasury) external onlyOwner {
-        emit SetTreasury(msg.sender, address(treasury), _treasury);
+        emit SetTreasury(_msgSender(), address(treasury), _treasury);
         treasury = IERC20(_treasury);
     }
 
@@ -130,22 +131,10 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _amount amount of asset token to be sold.
      */
     function allocate(address _token, uint256 _amount) public onlyOwner {
-        allocateFrom(msg.sender, _token, _amount);
-    }
-
-    /**
-     * @notice allocates asset tokens to be sold for _token from _owner address.
-     * @param _owner address of the asset owner
-     * @param _token address of the token we are selling asset for
-     * @param _amount amount of token to be sold
-     */
-    function allocateFrom(address _owner, address _token, uint256 _amount) public onlyOwner {
-
-        // check if we have enough allowance to spend asset tokens
-        require(_owner == msg.sender || asset.allowance(_owner, address(this)) >= _amount);
+        require(asset.allowance(_msgSender(), address(this)) >= _amount);
 
         // transfer the asset tokens from _owner to the contract
-        asset.transferFrom(_owner, address(this), _amount);
+        asset.transferFrom(_msgSender(), address(this), _amount);
 
         // add the amount of allocated asset to the _token -> allocated amount mapping
         allocations[_token] += _amount;
@@ -160,7 +149,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _amount amount of asset token to be sold
      */
     function deallocate(address _token, uint256 _amount) public onlyOwner {
-        deallocateTo(msg.sender, _token, _amount);
+        deallocateTo(_msgSender(), _token, _amount);
     }
 
     /**
@@ -168,7 +157,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _token address of the token we are selling asset for
      */
     function deallocate(address _token) public onlyOwner {
-        deallocateTo(msg.sender, _token, allocations[_token]);
+        deallocateTo(_msgSender(), _token, allocations[_token]);
     }
 
     /**
@@ -236,18 +225,18 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
 
         // make sure we have enough & decrease balance asap
         require(_allocationsBalance(_token) >= _amount, "Rocket: insufficient asset allocation for order");
-        require(IERC20(_token).allowance(msg.sender, address(this)) >= _quoted_amount, "Rocket: insufficient allowance for order");
+        require(IERC20(_token).allowance(_msgSender(), address(this)) >= _quoted_amount, "Rocket: insufficient allowance for order");
 
         // transfer their tokens to the treasury address
         // check if the sender is allowed to spend the tokens
-        IERC20(_token).transferFrom(msg.sender, address(treasury), _quoted_amount);
+        IERC20(_token).transferFrom(_msgSender(), address(treasury), _quoted_amount);
         allocations[_token] -= _amount;
 
         // lock the asset tokens for sale
-        Locked memory _locked = locked_asset[msg.sender];
+        Locked memory _locked = locked_asset[_msgSender()];
         _locked.amount += _amount;
         _locked.timestamp = block.timestamp + lock_time;
-        locked_asset[msg.sender] = _locked;
+        locked_asset[_msgSender()] = _locked;
 
         // return the price and maturity
         price_ = _quoted_amount;
@@ -255,7 +244,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
 
         // emit an event to notify the user of the deposit
         // event Deposited(address indexed from, address indexed token, uint256 amount, uint256 max_price, uint256 price, uint256 maturity);
-        emit Deposited(msg.sender, _token, _amount, _max_price, price_, maturity_);
+        emit Deposited(_msgSender(), _token, _amount, _max_price, price_, maturity_);
     }
 
     /**
@@ -271,11 +260,11 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @notice harvests locked tokens. Can only be done after the lock time has expired.
      */
     function harvest() external notPaused notBlacklisted {
-        Locked memory _locked = locked_asset[msg.sender];
+        Locked memory _locked = locked_asset[_msgSender()];
         require(_locked.amount > 0, "Rocket: no order");
         require(_locked.timestamp <= block.timestamp, "Rocket: order not matured");
-        locked_asset[msg.sender] = Locked(0, 0);
-        IERC20(asset).transfer(msg.sender, _locked.amount);
-        emit Harvested(msg.sender, _locked.amount);
+        locked_asset[_msgSender()] = Locked(0, 0);
+        IERC20(asset).transfer(_msgSender(), _locked.amount);
+        emit Harvested(_msgSender(), _locked.amount);
     }
 }
