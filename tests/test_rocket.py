@@ -8,6 +8,7 @@ from brownie import reverts
 import time
 
 ZERO_ADDRESS = '0x' + '0' * 40
+UNIT = 10**18
 
 
 @pytest.fixture
@@ -19,13 +20,13 @@ def sybil():
 @pytest.fixture
 def voodoo():
     print("deploy mock Voodoo")
-    return accounts[0].deploy(MockERC20, "Voodoo", "VOO", 18, 1000*10**18)
+    return accounts[0].deploy(MockERC20, "Voodoo", "VOO", 18, 1000*UNIT)
 
 
 @pytest.fixture
 def busd():
     print("deploy mock Busd")
-    return accounts[0].deploy(MockERC20, "Binance USD", "BUSD", 18, 1000*10**18)
+    return accounts[0].deploy(MockERC20, "Binance USD", "BUSD", 18, 1000*UNIT)
 
 
 @pytest.fixture
@@ -39,11 +40,11 @@ def test_rocket(sybil, voodoo, busd, strategy):
 
     # make sure voodoo was deployed and that we have voodoo
     assert(voodoo.address != ZERO_ADDRESS)
-    assert(voodoo.balanceOf(accounts[0]) == 1000*10**18)
+    assert(voodoo.balanceOf(accounts[0]) == 1000*UNIT)
 
     # make sure busd was deployed and that we have busd
     assert(busd.address != ZERO_ADDRESS)
-    assert(busd.balanceOf(accounts[0]) == 1000*10**18)
+    assert(busd.balanceOf(accounts[0]) == 1000*UNIT)
 
     assert(strategy.address != ZERO_ADDRESS)
 
@@ -62,39 +63,47 @@ def test_rocket(sybil, voodoo, busd, strategy):
 
     # allocate 100 Voodoo tokens to the bonds contract on BUSD market
     print("allocate 100 Voodoo tokens to the bonds contract on BUSD market")
-    bonds.allocate(busd.address, 100*10**18, {'from': accounts[0]})
+    bonds.allocate(busd.address, 100*UNIT, {'from': accounts[0]})
     # make sure allocations are correct
-    assert(bonds.allocations(busd.address) == 100*10**18)
+    assert(bonds.allocations(busd.address) == 100*UNIT)
     # make sure the bond contract has 100 Voodoo
-    assert(voodoo.balanceOf(bonds.address) == 100*10**18)
+    assert(voodoo.balanceOf(bonds.address) == 100*UNIT)
 
     # deallocate 100 Voodoo tokens from the bonds contract on BUSD market
     print("deallocate 100 Voodoo tokens from the bonds contract on BUSD market")
-    bonds.deallocate(busd.address, 100*10**18, {'from': accounts[0]})
+    bonds.deallocate(busd.address, 100*UNIT, {'from': accounts[0]})
     # make sure allocations are correct
     assert(bonds.allocations(busd.address) == 0)
     # make sure the bond contract has 0 Voodoo
     assert(voodoo.balanceOf(bonds.address) == 0)
     # make sure we have 1000 Voodoo again
-    assert(voodoo.balanceOf(accounts[0]) == 1000*10**18)
+    assert(voodoo.balanceOf(accounts[0]) == 1000*UNIT)
 
     # allocate 100 Voodoo tokens to the bonds contract on BUSD market
     print("allocate 100 Voodoo tokens to the bonds contract on BUSD market again")
-    bonds.allocate(busd.address, 100*10**18, {'from': accounts[0]})
+    bonds.allocate(busd.address, 100*UNIT, {'from': accounts[0]})
 
     # make sure we have 100 Voodoo allocation balance
-    assert(bonds.allocationBalance(busd.address) == 100*10**18)
+    assert(bonds.allocationBalance(busd.address) == 100*UNIT)
 
     # make sure bond strategy returns 0.9 multiplier
-    (mul, div) = strategy.discount(busd.address, 10**18, 3600*24*21)
+    (mul, div) = strategy.discount(busd.address, UNIT, 3600*24*21)
     assert(mul/div == 0.9)
 
     # get a quote for buying 1 Voodoo tokens on BUSD market
+    print("what is the USD price of Voodoo?")
+    voodoo_price = sybil.getBuyPriceAs("USD", voodoo.address, 1*UNIT)
+    print("Voodoo price is", voodoo_price/UNIT)
+
+    print("what is the USD price of BUSD?")
+    busd_price = sybil.getBuyPriceAs("USD", busd.address, 1*UNIT)
+    print("BUSD Price is", busd_price/UNIT)
+
     print("get a quote for buying 1 Voodoo tokens on BUSD market")
-    quote = bonds.quote(busd.address, 10**18, {'from': accounts[0]})
+    quote = bonds.quote(busd.address, UNIT, {'from': accounts[0]})
 
     # make sure quote is correct
-    assert(quote == ((1*10**18)/100)*90) # MockStrategy always gives 10% discount
+    assert(quote == ((1*UNIT)/100)*90) # MockStrategy always gives 10% discount
 
     # try to harvest now, it should fail since we haven't executed any orders yet.
     print("try to harvest now, it should fail since we haven't executed any orders yet.")
@@ -104,16 +113,16 @@ def test_rocket(sybil, voodoo, busd, strategy):
     # execute quote with max_price less than quoted amount, make sure it fails
     print("execute quote with max_price less than quoted amount, make sure it fails")
     with reverts("Rocket: max price exceeded"):
-        bonds.deposit(busd.address, 10**18, int(0.9*quote), {'from': accounts[0]})
+        bonds.deposit(busd.address, UNIT, int(0.9*quote), {'from': accounts[0]})
 
     # execute quote exceeding voodoo allocation, make sure it fails
     print("execute quote exceeding voodoo allocation, make sure it fails")
     with reverts("Rocket: insufficient asset allocation for order"):
-        bonds.deposit(busd.address, 101*10**18, 101*10**19, {'from': accounts[0]})
+        bonds.deposit(busd.address, 101*UNIT, 101*10**19, {'from': accounts[0]})
 
     # execute quote, make sure we have the right price and maturity (21 days)
     print("execute quote, make sure we have the right price and maturity (21 days)")
-    tx = bonds.deposit(busd.address, 10**18, quote, {'from': accounts[0]})
+    tx = bonds.deposit(busd.address, UNIT, quote, {'from': accounts[0]})
     assert(tx.return_value[0] == quote) # price paid
 
     # make sure tx.return_value[1] which is maturity unix timestamp is greater than now
@@ -121,7 +130,7 @@ def test_rocket(sybil, voodoo, busd, strategy):
 
     # make sure the treasury address received the BUSD
     print("balance of treasury is now", busd.balanceOf(treasury))
-    assert(busd.balanceOf(treasury) == 10**18*0.9)
+    assert(busd.balanceOf(treasury) == UNIT*0.9)
 
     # try to harvest now, it should fail since we haven't matured
     print("try to harvest now, it should fail since we haven't matured")
@@ -142,5 +151,5 @@ def test_rocket(sybil, voodoo, busd, strategy):
 
     # we should have one more voodoo than before
     print("we should have one more voodoo than before")
-    assert(voodoo.balanceOf(accounts[0]) == our_voodoo_balance + 10**18)
+    assert(voodoo.balanceOf(accounts[0]) == our_voodoo_balance + UNIT)
     

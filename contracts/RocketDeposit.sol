@@ -46,13 +46,13 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @notice sybil is an oracle-like contract that will provide the price of the asset
      * @notice depending on purchased quantity. See L<ISybil>.
      */
-    ISybil private sybil;
+    ISybil public sybil;
 
     /**
      * @notice the strategy gives us discount % depending on token we are buying
      * @notice amount of tokens, and maturity.
      */
-    IRocketStrategy private bond_strategy;
+    IRocketStrategy public bond_strategy;
 
     // stored the amount of locked asset and the timestamp to release.
     struct Locked {
@@ -199,20 +199,43 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
         balance_ = allocations[_token];
     }
 
+
     /**
      * @notice returns how much it would cost to buy _amount asset tokens
      * @param _token token to use for purchasing asset
      * @param _amount amount of asset tokens to be bought
-     * @return price_ the amount of tokens that would be required to make the purchase
+     * @return price_ t1he value of tokens expressed in BNB it would cost
      */
-    function quote(address _token, uint256 _amount) public view returns (uint256 price_) {
-        // get the base buy price of the token
+    function quoteBNB(address _token, uint256 _amount) public view returns (uint256) {
+        uint256 _tokenPricePerBNB = sybil.getBuyPrice(_token, IERC20(_token).decimals());
         (uint256 _mul, uint256 _div) = bond_strategy.discount(_token, _amount, lock_time);
-        price_ = sybil.getBuyPrice(_token, _amount) * _mul / _div;
+        return _tokenPricePerBNB         // precision = 18
+            *  _amount                   // precision = 36
+            /  IERC20(_token).decimals() // precision = 18 again
+            * _mul / _div;
+    }
+
+
+    /**
+     * @notice returns the asset price per unit, expressed in BNB (precision = 18)
+     */
+    function assetPrice() private view returns (uint256) {
+        return sybil.getBuyPrice(address(asset), asset.decimals());
+    }
+
+
+    /**
+     * @notice returns the asset price per _token unit.
+     */
+    function quote(address _token, uint256 _amount) public view returns (uint256) {
+        return asset.decimals()         // precision of our asset = 18
+            * quoteBNB(_token, _amount) // expressed in BNB (precision = 18 so we're at 36 now)
+            / assetPrice()              // also expressed in BNB (back to precision = 18)
+        ;
     }
 
     /**
-     * @notice executes a quote to buy _amount tokens, depositing at most _max_price.
+     * @notice executes a quote to buy _amount asset, depositing at most _max_price.
      * @param _token token to use for purchasing asset
      * @param _amount amount of asset tokens to be bought
      * @param _max_price maximum price to pay for the purchase
@@ -220,6 +243,9 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @return maturity_ the maturity of the purchase, e.g. when it can be claimed
      */
     function deposit(address _token, uint256 _amount, uint256 _max_price) external notPaused notBlacklisted returns (uint256 price_, uint256 maturity_) {
+
+        // this is the amount of _token we need (expressed as a fraction
+        // with 10**18 precision) to purchase _amount asset tokens
         uint256 _quoted_amount = quote(_token, _amount);
         require(_quoted_amount <= _max_price, "Rocket: max price exceeded");
 
