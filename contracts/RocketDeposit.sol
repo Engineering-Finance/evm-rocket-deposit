@@ -210,7 +210,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @param _token address of the token we are selling asset for
      * @return balance_ uint256 amount of remaining allocated asset tokens
      */
-    function _allocationsBalance(address _token) private view returns (uint256 balance_) {
+    function allocationBalance(address _token) public view returns (uint256 balance_) {
         balance_ = allocations[_token];
     }
 
@@ -239,7 +239,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
         require(_quoted_amount <= _max_price, "Rocket: max price exceeded");
 
         // make sure we have enough & decrease balance asap
-        require(_allocationsBalance(_token) >= _amount, "Rocket: insufficient asset allocation for order");
+        require(allocationBalance(_token) >= _amount, "Rocket: insufficient asset allocation for order");
         require(IERC20(_token).allowance(msg.sender, address(this)) >= _quoted_amount, "Rocket: insufficient allowance for order");
 
         // transfer their tokens to the treasury address

@@ -82,6 +82,9 @@ def test_rocket(sybil, voodoo, busd, strategy):
     print("allocate 100 Voodoo tokens to the bonds contract on BUSD market again")
     bonds.allocate(busd.address, 100*10**18, {'from': accounts[0]})
 
+    # make sure we have 100 Voodoo allocation balance
+    assert(bonds.allocationBalance(busd.address) == 100*10**18)
+
     # make sure bond strategy returns 0.9 multiplier
     (mul, div) = strategy.discount(busd.address, 10**18, 3600*24*21)
     assert(mul/div == 0.9)

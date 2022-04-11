@@ -14,6 +14,13 @@ interface IRocketDeposit {
     event Harvested(address indexed from, uint256 amount);
 
     /**
+     * @notice returns how many _token tokens are available for sale
+     * @param _token - _token token address
+     * @return balance_ - amount of _token tokens available for sale
+     */
+    function allocationBalance(address _token) external view returns (uint256 balance_);
+
+    /**
      * @notice returns how much it would cost to buy _amount of _asset tokens using _token tokens.
      * @param _token address of token we are purchasing with
      * @param _amount amount of _asset tokens to buy
