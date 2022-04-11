@@ -225,7 +225,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
 
 
     /**
-     * @notice returns the asset price per _token unit.
+     * @notice returns how much _token should be required to purchase _amount of asset.
      */
     function quote(address _token, uint256 _amount) public view returns (uint256) {
         return asset.decimals()         // precision of our asset = 18
