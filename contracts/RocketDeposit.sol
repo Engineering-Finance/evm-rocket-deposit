@@ -34,13 +34,13 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
     /**
      * @notice the address of the asset, i.e. the token we are selling.
      */
-    IERC20 private asset;
+    IERC20 public asset;
 
     /**
      * @notice the amount of time for the rocket deposit to mature, in seconds.
      * @dev set this to 21 days by default.
      */
-    uint256 private lock_time = 60 * 60 * 24 * 21;
+    uint256 public lock_time = 60 * 60 * 24 * 21;
 
     /**
      * @notice sybil is an oracle-like contract that will provide the price of the asset
@@ -68,7 +68,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
     /**
      * @notice where we should be sending the funds to.
      */
-    IERC20 private treasury;
+    IERC20 public treasury;
 
     /**
      * @notice Constructor
@@ -199,7 +199,6 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
         balance_ = allocations[_token];
     }
 
-
     /**
      * @notice returns how much it would cost to buy _amount asset tokens
      * @param _token token to use for purchasing asset
@@ -207,28 +206,26 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
      * @return price_ t1he value of tokens expressed in BNB it would cost
      */
     function quoteBNB(address _token, uint256 _amount) public view returns (uint256) {
-        uint256 _tokenPricePerBNB = sybil.getBuyPrice(_token, IERC20(_token).decimals());
+        uint256 _tokenPricePerBNB = sybil.getBuyPrice(_token, 10**IERC20(_token).decimals());
         (uint256 _mul, uint256 _div) = bond_strategy.discount(_token, _amount, lock_time);
-        return _tokenPricePerBNB         // precision = 18
-            *  _amount                   // precision = 36
-            /  IERC20(_token).decimals() // precision = 18 again
+        return _tokenPricePerBNB             // precision = 18
+            *  _amount                       // precision = 36
+            /  10**IERC20(_token).decimals() // precision = 18 again
             * _mul / _div;
     }
-
 
     /**
      * @notice returns the asset price per unit, expressed in BNB (precision = 18)
      */
     function assetPrice() private view returns (uint256) {
-        return sybil.getBuyPrice(address(asset), asset.decimals());
+        return sybil.getBuyPrice(address(asset), 10**IERC20(asset).decimals());
     }
-
 
     /**
      * @notice returns how much _token should be required to purchase _amount of asset.
      */
     function quote(address _token, uint256 _amount) public view returns (uint256) {
-        return asset.decimals()         // precision of our asset = 18
+        return 10**asset.decimals()         // precision of our asset = 18
             * quoteBNB(_token, _amount) // expressed in BNB (precision = 18 so we're at 36 now)
             / assetPrice()              // also expressed in BNB (back to precision = 18)
         ;
