@@ -199,18 +199,6 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
         balance_ = allocations[_token];
     }
 
-
-    /**
-    function quoteBNB(address _token, uint256 _amount) public view returns (uint256) {
-        uint256 _tokenPricePerBNB = sybil.getBuyPrice(_token, 10**IERC20(_token).decimals());
-        (uint256 _mul, uint256 _div) = bond_strategy.discount(_token, _amount, lock_time);
-        return _tokenPricePerBNB             // precision = 18
-            *  _amount                       // precision = 36
-            /  10**IERC20(_token).decimals() // precision = 18 again
-            * _mul / _div;
-    }
-     */
-
     /**
      * @notice returns the asset price per unit, expressed in BNB (precision = 18)
      */
@@ -251,7 +239,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
     }
 
     /**
-     * @notice executes a quote to buy _amount asset, depositing at most _max_price.
+     * @notice executes a bid to buy _amount asset, depositing at most _max_price _tokens.
      * @param _token token to use for purchasing asset
      * @param _amount amount of asset tokens to be bought
      * @param _max_price maximum price to pay for the purchase
