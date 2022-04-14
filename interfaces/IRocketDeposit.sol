@@ -21,6 +21,15 @@ interface IRocketDeposit {
     function allocationBalance(address _token) external view returns (uint256 balance_);
 
     /**
+     * @notice returns the quantity of _token required to spend to get _amount of asset,
+     * @notice before discount, expressed in a quantity of _token tokens.
+     * @param _token - _token address of the token we're paying with
+     * @param _amount - amount of asset tokens to buy
+     * @return quantity_ - quantity of _token tokens required to spend to get _amount of asset tokens
+     */
+    function quoteNoDiscount(address _token, uint256 _amount) external view returns (uint256 quantity_);
+
+    /**
      * @notice returns how much it would cost to buy _amount of _asset tokens using _token tokens.
      * @param _token address of token we are purchasing with
      * @param _amount amount of _asset tokens to buy

@@ -18,7 +18,7 @@ import "./Blacklistable.sol";
  * @notice harvest after the period of time has passed.
  */
 contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
-    
+
     event SetMaturity(address indexed from, uint256 old_maturity, uint256 new_maturity);
     event SetSybil(address indexed _from, address indexed old_oracle, address indexed new_oracle);
     event SetStrategy(address indexed _from, address indexed old_strategy, address indexed new_strategy);
@@ -44,7 +44,7 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
 
     /**
      * @notice sybil is an oracle-like contract that will provide the price of the asset
-     * @notice depending on purchased quantity. See L<ISybil>.
+     * @notice depending on purchased quantity. See interface {ISybil} for more details.
      */
     ISybil public sybil;
 
@@ -134,7 +134,10 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
         require(asset.allowance(_msgSender(), address(this)) >= _amount);
 
         // transfer the asset tokens from _owner to the contract
+        uint256 old_balance = asset.balanceOf(address(this));
         asset.transferFrom(_msgSender(), address(this), _amount);
+        uint256 new_balance = asset.balanceOf(address(this));
+        require(new_balance - old_balance == _amount, "RocketDeposit: allocate transfer failed");
 
         // add the amount of allocated asset to the _token -> allocated amount mapping
         allocations[_token] += _amount;
@@ -213,7 +216,6 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
         return sybil.getBuyPrice(address(_token), 10**IERC20(asset).decimals());
     }
 
-
     /**
      * @notice returns the quantity of _token required to spend to get _amount of asset,
      * @notice expressed in _token.
@@ -259,7 +261,11 @@ contract RocketDeposit is Ownable, Pausable, Blacklistable, IRocketDeposit {
 
         // transfer their tokens to the treasury address
         // check if the sender is allowed to spend the tokens
+        uint256 old_balance = IERC20(_token).balanceOf(address(treasury));
         IERC20(_token).transferFrom(_msgSender(), address(treasury), _quoted_amount);
+        uint256 new_balance = IERC20(_token).balanceOf(address(treasury));
+        require(new_balance - old_balance == _quoted_amount, "Rocket: failed to transfer tokens");
+
         allocations[_token] -= _amount;
 
         // lock the asset tokens for sale
